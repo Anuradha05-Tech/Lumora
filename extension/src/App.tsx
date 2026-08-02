@@ -58,54 +58,64 @@ function App() {
   return (
     <div className="flex flex-col h-screen bg-background text-text">
       {/* Header */}
-      <header className="flex items-center justify-between p-4 border-b border-surface shadow-sm">
-        <h1 className="text-xl font-bold text-primary flex items-center gap-2">
-          Lumora
-        </h1>
-        <div className="text-xs font-medium">
-          {isIndexing ? (
-            <span className="text-yellow-400 flex items-center gap-1">
-              <span className="animate-pulse h-2 w-2 bg-yellow-400 rounded-full inline-block"></span>
-              Indexing...
-            </span>
-          ) : indexError ? (
-            <span className="text-red-400" title={indexError}>Error indexing</span>
-          ) : (
-            <span className="text-green-400 flex items-center gap-1">
-              <span className="h-2 w-2 bg-green-400 rounded-full inline-block"></span>
-              Ready
-            </span>
-          )}
+      <header className="flex flex-col border-b border-surface/50 shadow-sm">
+        <div className="flex items-center justify-between p-4">
+          <h1 className="text-lg font-semibold text-text flex items-center gap-2">
+            Lumora Copilot
+          </h1>
+          <div className="text-xs font-medium bg-surface/50 px-2 py-1 rounded-md">
+            {isIndexing ? (
+              <span className="text-yellow-400 flex items-center gap-1.5">
+                <span className="animate-pulse h-1.5 w-1.5 bg-yellow-400 rounded-full inline-block"></span>
+                Indexing...
+              </span>
+            ) : indexError ? (
+              <span className="text-red-400 flex items-center gap-1.5" title={indexError}>
+                <span className="h-1.5 w-1.5 bg-red-400 rounded-full inline-block"></span>
+                Error
+              </span>
+            ) : (
+              <span className="text-primary flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 bg-primary rounded-full inline-block"></span>
+                Ready
+              </span>
+            )}
+          </div>
         </div>
+
+        {/* Top Tab Navigation */}
+        <nav className="flex justify-around px-2 pb-2">
+          {[
+            { id: 'chat', icon: MessageSquare, label: 'Chat' },
+            { id: 'notes', icon: FileText, label: 'Notes' },
+            { id: 'summary', icon: AlignLeft, label: 'Summary' },
+            { id: 'quiz', icon: HelpCircle, label: 'Quiz' },
+            { id: 'flashcards', icon: LayoutGrid, label: 'Cards' },
+          ].map((tab) => (
+            <button 
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)} 
+              className={`flex-1 flex flex-col items-center justify-center gap-1 py-1.5 mx-1 transition-all rounded-md text-[10px] uppercase tracking-wider font-semibold ${
+                activeTab === tab.id 
+                  ? 'bg-surface text-primary shadow-sm ring-1 ring-white/5' 
+                  : 'text-muted hover:text-text hover:bg-surface/30'
+              }`}
+            >
+              <tab.icon size={16} />
+              {tab.label}
+            </button>
+          ))}
+        </nav>
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-hidden">
+      <main className="flex-1 overflow-hidden relative">
         {activeTab === 'chat' && <ChatTab videoId={videoId} />}
         {activeTab === 'notes' && <NotesTab />}
         {activeTab === 'summary' && <SummaryTab />}
         {activeTab === 'quiz' && <QuizTab />}
         {activeTab === 'flashcards' && <FlashcardsTab />}
       </main>
-
-      {/* Tab Navigation */}
-      <nav className="flex justify-around p-3 border-t border-surface bg-surface shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
-        <button onClick={() => setActiveTab('chat')} className={`p-2 transition-colors rounded-lg ${activeTab === 'chat' ? 'bg-primary text-white shadow-lg' : 'text-muted hover:text-white'}`}>
-          <MessageSquare size={20} />
-        </button>
-        <button onClick={() => setActiveTab('notes')} className={`p-2 transition-colors rounded-lg ${activeTab === 'notes' ? 'bg-primary text-white shadow-lg' : 'text-muted hover:text-white'}`}>
-          <FileText size={20} />
-        </button>
-        <button onClick={() => setActiveTab('summary')} className={`p-2 transition-colors rounded-lg ${activeTab === 'summary' ? 'bg-primary text-white shadow-lg' : 'text-muted hover:text-white'}`}>
-          <AlignLeft size={20} />
-        </button>
-        <button onClick={() => setActiveTab('quiz')} className={`p-2 transition-colors rounded-lg ${activeTab === 'quiz' ? 'bg-primary text-white shadow-lg' : 'text-muted hover:text-white'}`}>
-          <HelpCircle size={20} />
-        </button>
-        <button onClick={() => setActiveTab('flashcards')} className={`p-2 transition-colors rounded-lg ${activeTab === 'flashcards' ? 'bg-primary text-white shadow-lg' : 'text-muted hover:text-white'}`}>
-          <LayoutGrid size={20} />
-        </button>
-      </nav>
     </div>
   )
 }

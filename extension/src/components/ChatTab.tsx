@@ -76,7 +76,7 @@ export default function ChatTab({ videoId }: { videoId: string }) {
         return (
           <button 
             key={i} 
-            className="text-primary font-medium hover:underline mx-1 cursor-pointer bg-primary/10 px-1 rounded inline-flex items-center"
+            className="text-primary font-medium hover:bg-primary/20 transition-colors mx-1 cursor-pointer bg-primary/10 px-1.5 py-0.5 rounded text-[13px] inline-flex items-center ring-1 ring-primary/30"
             onClick={() => {
               const [mins, secs] = part.split(':').map(Number)
               const time = mins * 60 + secs
@@ -88,7 +88,7 @@ export default function ChatTab({ videoId }: { videoId: string }) {
               })
             }}
           >
-            📍{part}
+            ▶ {part}
           </button>
         )
       }
@@ -97,26 +97,27 @@ export default function ChatTab({ videoId }: { videoId: string }) {
   }
 
   return (
-    <div className="flex flex-col h-full bg-background relative">
-      <div className="flex-1 overflow-y-auto p-4 custom-scrollbar pb-20">
+    <div className="flex flex-col h-full bg-background relative font-sans">
+      <div className="flex-1 overflow-y-auto custom-scrollbar pb-24">
         {messages.length === 0 ? (
           <div className="h-full flex items-center justify-center text-muted text-center p-8 flex-col gap-4">
             <Bot size={48} className="opacity-20" />
-            <p>Ask a question about the video.</p>
+            <p className="text-sm">How can I help you understand this video?</p>
           </div>
         ) : (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col">
             {messages.map((msg) => (
-              <div key={msg.id} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                <div className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center shadow-lg ${msg.role === 'user' ? 'bg-primary shadow-primary/30' : 'bg-surface border border-gray-700'}`}>
-                  {msg.role === 'user' ? <User size={16} className="text-white" /> : <Bot size={16} className="text-primary" />}
+              <div key={msg.id} className={`flex gap-4 p-5 ${msg.role === 'user' ? 'bg-transparent' : 'bg-surface/30 border-y border-white/5'}`}>
+                <div className={`shrink-0 w-8 h-8 rounded flex items-center justify-center mt-1 ${msg.role === 'user' ? 'bg-primary text-white' : 'bg-[#10A37F] text-white'}`}>
+                  {msg.role === 'user' ? <User size={18} /> : <Bot size={18} />}
                 </div>
-                <div className={`p-3 rounded-2xl max-w-[85%] whitespace-pre-wrap text-sm leading-relaxed ${
-                  msg.role === 'user' 
-                    ? 'bg-primary text-white rounded-tr-sm shadow-lg shadow-primary/20' 
-                    : 'bg-surface text-text rounded-tl-sm shadow-[0_4px_6px_-1px_rgba(0,0,0,0.2)] border border-gray-700/50'
-                }`}>
-                  {parseContent(msg.content)}
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold text-xs text-muted mb-1 uppercase tracking-wide">
+                    {msg.role === 'user' ? 'You' : 'Lumora'}
+                  </div>
+                  <div className="text-text whitespace-pre-wrap text-[15px] leading-relaxed">
+                    {parseContent(msg.content)}
+                  </div>
                 </div>
               </div>
             ))}
@@ -126,23 +127,32 @@ export default function ChatTab({ videoId }: { videoId: string }) {
       </div>
 
       {/* Input Box */}
-      <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-background via-background to-transparent pt-10">
-        <div className="flex items-center gap-2 bg-surface border border-gray-700 rounded-full p-2 shadow-xl focus-within:border-primary transition-colors">
-          <input 
-            type="text" 
+      <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-background via-background to-transparent pt-12">
+        <div className="relative max-w-3xl mx-auto">
+          <textarea 
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            placeholder="Ask Lumora..." 
-            className="flex-1 bg-transparent border-none outline-none text-text px-3 placeholder:text-muted text-sm"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+              }
+            }}
+            placeholder="Message Lumora..." 
+            rows={1}
+            className="w-full bg-surface border border-gray-600/50 rounded-xl px-4 py-3.5 pr-12 text-[15px] text-text placeholder:text-muted outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all resize-none overflow-hidden"
+            style={{ minHeight: '52px', maxHeight: '200px' }}
           />
           <button 
             onClick={handleSend}
             disabled={isLoading || !input.trim()}
-            className="p-2 rounded-full bg-primary text-white disabled:opacity-50 hover:bg-blue-600 transition-colors shadow-lg shadow-primary/30"
+            className="absolute right-2 bottom-2.5 p-1.5 rounded-lg bg-primary text-white disabled:bg-surface disabled:text-muted hover:bg-blue-600 transition-colors"
           >
-            <Send size={16} />
+            <Send size={18} className={isLoading ? "animate-pulse" : ""} />
           </button>
+        </div>
+        <div className="text-center mt-2 text-[10px] text-muted">
+          Lumora can make mistakes. Check timestamps.
         </div>
       </div>
     </div>
