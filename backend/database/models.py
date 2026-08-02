@@ -11,6 +11,11 @@ class Video(Base):
     title = Column(String, nullable=True)
     indexed_at = Column(DateTime, default=datetime.utcnow)
     status = Column(String, default="indexed")
+    summaries_json = Column(Text, nullable=True) # Dictionary of {subtype: summary_text}
+    notes = Column(Text, nullable=True)
+    quiz_json = Column(Text, nullable=True)
+    flashcards_json = Column(Text, nullable=True)
+    timeline_json = Column(Text, nullable=True)
 
 class ChatHistory(Base):
     __tablename__ = 'chat_history'
