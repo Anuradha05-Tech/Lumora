@@ -61,7 +61,7 @@ function App() {
       <header className="flex flex-col border-b border-surface/50 shadow-sm">
         <div className="flex items-center justify-between p-4">
           <h1 className="text-lg font-semibold text-text flex items-center gap-2">
-            Lumora Copilot
+            Lumora
           </h1>
           <div className="text-xs font-medium bg-surface/50 px-2 py-1 rounded-md">
             {isIndexing ? (
