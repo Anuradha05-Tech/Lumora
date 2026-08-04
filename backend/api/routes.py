@@ -33,25 +33,34 @@ def process_video(request: ProcessVideoRequest, db: Session = Depends(get_db)):
         return {"status": "success", "message": "Video already processed."}
         
     try:
-        # Fetch transcript
-        transcript = TranscriptService.get_transcript(video_id)
-        
-        # Process and index
-        rag_service.process_and_index_transcript(video_id, transcript)
-        
+        audio_uri = None
+        try:
+            # Fetch transcript
+            transcript = TranscriptService.get_transcript(video_id)
+            # Process and index
+            rag_service.process_and_index_transcript(video_id, transcript)
+        except Exception as transcript_err:
+            print(f"Transcript fetch failed for {video_id}. Falling back to native audio... Error: {transcript_err}")
+            from services.audio_service import AudioService
+            audio_uri = AudioService.upload_audio(video_id)
+            
         # Save to DB
-        new_video = Video(id=video_id, title=request.title)
+        new_video = Video(id=video_id, title=request.title, audio_file_uri=audio_uri)
         db.add(new_video)
         db.commit()
         
-        return {"status": "success", "message": "Video processed and indexed."}
+        msg = "Video processed using native audio fallback." if audio_uri else "Video processed and indexed."
+        return {"status": "success", "message": msg}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/chat")
-def chat_with_video(request: ChatRequest):
+def chat_with_video(request: ChatRequest, db: Session = Depends(get_db)):
+    video = db.query(Video).filter(Video.id == request.video_id).first()
+    audio_uri = video.audio_file_uri if video else None
+    
     def iter_response():
-        for chunk in rag_service.chat_with_video(request.video_id, request.query, request.history):
+        for chunk in rag_service.chat_with_video(request.video_id, request.query, request.history, audio_uri):
             yield chunk
             
     return StreamingResponse(iter_response(), media_type="text/event-stream")
@@ -96,8 +105,12 @@ def generate_content(content_type: str, request: GenerateRequest, db: Session = 
 
     # 2. Generate Content
     try:
-        raw_transcript = TranscriptService.get_transcript(video_id)
-        generated_result = rag_service.generate_content(video_id, content_type, raw_transcript, subtype=request.subtype)
+        if video.audio_file_uri:
+            raw_transcript = []
+        else:
+            raw_transcript = TranscriptService.get_transcript(video_id)
+            
+        generated_result = rag_service.generate_content(video_id, content_type, raw_transcript, subtype=request.subtype, audio_uri=video.audio_file_uri)
         
         # 3. Save to Cache
         if content_type == "summary":

@@ -88,10 +88,33 @@ class RAGService:
         self.vectorstore.add_documents(docs_to_index)
         return True
 
-    def chat_with_video(self, video_id: str, query: str, history: List[Dict[str, str]] = None) -> Generator[str, None, None]:
+    def chat_with_video(self, video_id: str, query: str, history: List[Dict[str, str]] = None, audio_uri: str = None) -> Generator[str, None, None]:
         """
         Stream an answer based on the video context and conversation history.
         """
+        if audio_uri:
+            from google import genai
+            from google.genai import types
+            import os
+            client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+            model_name = os.getenv("LLM_MODEL", "gemini-flash-lite-latest")
+            audio_part = types.Part.from_uri(file_uri=audio_uri, mime_type="audio/mp3")
+            qa_system_prompt = "You are Lumora, an AI learning assistant. Answer the user's question based ONLY on the provided audio from a YouTube video. If you cite time, guess the timestamp like 📍[MM:SS] based on the audio. If the audio does not contain the answer, say 'I don't have enough information from the video to answer that.'"
+            contents = []
+            if history:
+                for msg in history[-6:]:
+                    role = "user" if msg['role'] == "user" else "model"
+                    contents.append(types.Content(role=role, parts=[types.Part.from_text(text=msg['content'])]))
+            contents.append(types.Content(role="user", parts=[audio_part, types.Part.from_text(text=query)]))
+            response = client.models.generate_content_stream(
+                model=model_name,
+                contents=contents,
+                config=types.GenerateContentConfig(system_instruction=qa_system_prompt, temperature=0.7)
+            )
+            for chunk in response:
+                yield chunk.text
+            return
+            
         retriever = self.vectorstore.as_retriever(
             search_type="mmr",
             search_kwargs={"filter": {"video_id": video_id}, "k": 5, "fetch_k": 20}
@@ -160,13 +183,16 @@ If the context does not contain the answer, say "I don't have enough information
         for chunk in chain.stream({"question": query, "chat_history": chat_history}):
             yield chunk
 
-    def generate_content(self, video_id: str, content_type: str, raw_transcript: List[Dict[str, Any]], subtype: str = None) -> str:
+    def generate_content(self, video_id: str, content_type: str, raw_transcript: List[Dict[str, Any]], subtype: str = None, audio_uri: str = None) -> str:
         """
-        Generate specific content types (summary, notes, quiz, flashcards, timeline) based on the raw transcript.
-        Truncates transcript to ~15,000 characters to avoid context window limits.
+        Generate specific content types (summary, notes, quiz, flashcards, timeline) based on the raw transcript or native audio.
+        Truncates transcript to ~500,000 characters to avoid context window limits.
         """
-        full_text = " ".join([t['text'] for t in raw_transcript])
-        context = full_text[:15000]
+        if raw_transcript:
+            full_text = " ".join([t['text'] for t in raw_transcript])
+            context = full_text[:500000]
+        else:
+            context = ""
 
         if content_type == "summary":
             mode_instructions = {
@@ -201,10 +227,10 @@ Transcript: {context}
 Notes:"""
         elif content_type == "quiz":
             template = """You are Lumora, a professional AI learning assistant. 
-Create a 3-question quiz based on the following transcript.
-You MUST output ONLY a valid JSON array of objects. Do not include markdown code blocks.
-Include one Multiple Choice (mcq), one True/False (tf), and one Fill-in-the-blank (fill).
-Format exactly like this:
+Create a 20-question quiz based on the following transcript.
+You MUST output ONLY a valid JSON array containing exactly 20 question objects. Do not include markdown code blocks.
+Include a variety of Multiple Choice (mcq), True/False (tf), and Fill-in-the-blank (fill) questions.
+Format the JSON array exactly like this example (but with 20 items):
 [
   {{"type": "mcq", "question": "Q1?", "options": ["A", "B", "C", "D"], "answer": "B", "explanation": "Why B is correct"}},
   {{"type": "tf", "question": "Statement?", "options": ["True", "False"], "answer": "True", "explanation": "Why True"}},
@@ -216,13 +242,15 @@ Transcript: {context}
 JSON Output:"""
         elif content_type == "timeline":
             template = """You are Lumora, a professional AI learning assistant. 
-Analyze the transcript and generate an "Important Timeline" of the 5 most crucial topics.
+Analyze the transcript and generate a comprehensive "Important Timeline" covering the ENTIRE video from start to finish.
+You MUST extract ALL major topics and ensure the timeline spans the entire duration of the video. Do not stop early! You must include events from the middle and the very end of the video.
 You MUST output ONLY a valid JSON array of objects. Do not include markdown code blocks.
 Extract the timestamp for when each topic begins based on the context (guess the MM:SS if necessary based on flow, but be sequential).
-Format exactly like this:
+Format exactly like this example (but generate as many items as needed to cover the whole video):
 [
   {{"time": "00:00", "label": "Introduction"}},
-  {{"time": "03:15", "label": "First Main Topic"}}
+  {{"time": "03:15", "label": "First Main Topic"}},
+  {{"time": "14:20", "label": "Another Topic"}}
 ]
 
 Transcript: {context}
@@ -240,23 +268,38 @@ JSON Output:"""
         else:
             raise ValueError("Invalid content type")
 
-        prompt = ChatPromptTemplate.from_template(template)
-        chain = prompt | self.llm | StrOutputParser()
-        
-        response = chain.invoke({"context": context})
+        if audio_uri:
+            from google import genai
+            from google.genai import types
+            import os
+            client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+            model_name = os.getenv("LLM_MODEL", "gemini-flash-lite-latest")
+            audio_part = types.Part.from_uri(file_uri=audio_uri, mime_type="audio/mp3")
+            prompt_text = template.replace("{context}", "[Audio Track Provided]")
+            
+            response = client.models.generate_content(
+                model=model_name,
+                contents=[audio_part, prompt_text],
+                config=types.GenerateContentConfig(temperature=0.7)
+            )
+            response_text = response.text
+        else:
+            prompt = ChatPromptTemplate.from_template(template)
+            chain = prompt | self.llm | StrOutputParser()
+            response_text = chain.invoke({"context": context})
         
         # Strip potential markdown formatting from JSON outputs
         if content_type in ["quiz", "flashcards", "timeline"]:
-            response = response.strip()
-            if response.startswith("```json"):
-                response = response[7:]
-            if response.startswith("```"):
-                response = response[3:]
-            if response.endswith("```"):
-                response = response[:-3]
-            response = response.strip()
+            response_text = response_text.strip()
+            if response_text.startswith("```json"):
+                response_text = response_text[7:]
+            if response_text.startswith("```"):
+                response_text = response_text[3:]
+            if response_text.endswith("```"):
+                response_text = response_text[:-3]
+            response_text = response_text.strip()
             
-        return response
+        return response_text
 
 # Singleton instance
 rag_service = RAGService()

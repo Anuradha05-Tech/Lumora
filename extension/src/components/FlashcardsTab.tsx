@@ -68,8 +68,8 @@ export default function FlashcardsTab({ videoId }: { videoId: string }) {
   const currentCard = cards[currentIndex];
 
   return (
-    <div className="h-full flex flex-col p-6">
-      <div className="flex items-center justify-between mb-8">
+    <div className="h-full flex flex-col p-6 overflow-y-auto custom-scrollbar pb-24">
+      <div className="flex items-center justify-between mb-8 shrink-0">
         <div className="flex items-center gap-2 text-primary">
           <LayoutGrid size={20} />
           <h2 className="font-semibold text-lg text-text">Spaced Repetition</h2>

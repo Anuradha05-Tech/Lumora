@@ -16,6 +16,7 @@ class Video(Base):
     quiz_json = Column(Text, nullable=True)
     flashcards_json = Column(Text, nullable=True)
     timeline_json = Column(Text, nullable=True)
+    audio_file_uri = Column(String, nullable=True)
 
 class ChatHistory(Base):
     __tablename__ = 'chat_history'
