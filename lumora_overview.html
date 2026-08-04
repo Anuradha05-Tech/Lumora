@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>lumora_overview</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<h1 id="lumora-project-overview">Lumora Project Overview</h1>
+<h2 id="project-overview">1. Project Overview</h2>
+<p>Lumora is an AI-powered learning assistant provided as a Chrome
+Extension, designed specifically for YouTube videos. Its main objective
+is to help users learn, summarize, and interact with video content
+seamlessly. When a user watches a YouTube video, Lumora indexes its
+content and provides a suite of advanced learning tools directly within
+the browser.</p>
+<p>Lumora uses a Retrieval-Augmented Generation (RAG) pipeline to
+analyze video transcripts. If a transcript is not available for a video,
+it gracefully falls back to native audio analysis, downloading the
+video’s audio track and passing it directly to multimodal AI models.</p>
+<h2 id="tech-stack">2. Tech Stack</h2>
+<h3 id="frontend-chrome-extension">Frontend (Chrome Extension)</h3>
+<ul>
+<li><strong>Framework:</strong> React 19 (built with Vite)</li>
+<li><strong>Language:</strong> TypeScript</li>
+<li><strong>Styling:</strong> Tailwind CSS (v4) with Lucide React for
+iconography</li>
+<li><strong>Markdown Rendering:</strong> react-markdown</li>
+<li><strong>Linting:</strong> Oxlint</li>
+<li><strong>Build Tool:</strong> Vite</li>
+</ul>
+<h3 id="backend-rest-api">Backend (REST API)</h3>
+<ul>
+<li><strong>Framework:</strong> FastAPI (Python)</li>
+<li><strong>Database (Relational):</strong> SQLite (using SQLAlchemy
+ORM) for storing metadata, caching summaries, generated notes, quizzes,
+and chat history.</li>
+<li><strong>Database (Vector):</strong> ChromaDB for semantic search and
+Retrieval-Augmented Generation (RAG) capabilities.</li>
+<li><strong>LLM Integration:</strong> LangChain
+(<code>langchain-huggingface</code>, <code>langchain-chroma</code>,
+<code>langchain-google-genai</code>).</li>
+<li><strong>AI Models:</strong>
+<ul>
+<li><strong>Embeddings:</strong> HuggingFace
+<code>BAAI/bge-base-en-v1.5</code> for creating semantic vector
+representations of transcript chunks.</li>
+<li><strong>Generative AI:</strong> Google Gemini
+(<code>gemini-1.5-flash</code> and <code>gemini-flash-lite-latest</code>
+depending on text vs multimodal audio tasks).</li>
+</ul></li>
+<li><strong>Audio Processing:</strong> <code>yt-dlp</code> to fetch
+lowest quality audio streams for videos without captions.</li>
+</ul>
+<h2 id="key-features">3. Key Features</h2>
+<p>Lumora offers a comprehensive set of features separated into
+individual tabs within the extension:</p>
+<ul>
+<li><strong>Chat (RAG-powered Q&amp;A):</strong> Users can ask specific
+questions about the video. The backend retrieves the most relevant
+context using ChromaDB and answers using Gemini. It cites exact
+timestamps (e.g., <code>📍[MM:SS]</code>) so users can jump to the
+relevant part of the video.</li>
+<li><strong>Summary:</strong> Generates executive, detailed, bulleted,
+ELI5 (Explain Like I’m 5), or rapid revision summaries.</li>
+<li><strong>Notes:</strong> Generates structured notes with dedicated
+sections such as Introduction, Main Concepts, Definitions, Examples, Key
+Takeaways, and Interview Questions.</li>
+<li><strong>Quiz:</strong> Generates a 20-question JSON-structured
+interactive quiz containing multiple-choice, true/false, and
+fill-in-the-blank questions.</li>
+<li><strong>Timeline:</strong> Analyzes the full context to extract
+major topics and timestamps across the entire duration of the
+video.</li>
+<li><strong>Flashcards:</strong> Extracts the most important concepts
+and creates a set of Question &amp; Answer flashcards for quick
+revision.</li>
+</ul>
+<h2 id="implementation-details">4. Implementation Details</h2>
+<ul>
+<li><strong>Video Processing Pipeline:</strong>
+<ol type="1">
+<li>When a video is opened, the frontend fetches the video ID and sends
+it to the backend <code>process_video</code> endpoint.</li>
+<li>The backend tries to fetch the transcript using the
+<code>TranscriptService</code>.</li>
+<li>If successful, the transcript is chunked (~1000 characters with ~200
+character overlaps preserving timestamps) and embedded into ChromaDB
+using HuggingFace embeddings.</li>
+<li>If the transcript fetch fails, the <code>AudioService</code> falls
+back to downloading the video’s audio using <code>yt-dlp</code> and
+uploads the raw audio to Google Gemini via its File API for native
+multimodal analysis.</li>
+</ol></li>
+<li><strong>Context-Aware Chat:</strong>
+<ul>
+<li>Implements a history-aware retriever using LangChain
+<code>RunnableBranch</code>. It reformulates user questions based on
+recent chat history to maintain conversation flow.</li>
+<li>Generates responses in a streaming manner using
+<code>StreamingResponse</code> in FastAPI to ensure low latency and
+real-time feel.</li>
+</ul></li>
+<li><strong>Caching Mechanism:</strong>
+<ul>
+<li>Results of computationally expensive tasks (like generating notes,
+flashcards, quizzes, and summaries) are cached in the SQLite database
+(<code>lumora.db</code>). This prevents redundant API calls to Gemini
+and allows users to revisit content instantly.</li>
+</ul></li>
+<li><strong>Responsive &amp; Modern UI:</strong>
+<ul>
+<li>The extension UI is constructed with a modern, glassmorphic
+aesthetic using Tailwind CSS.</li>
+<li>Dynamic tab navigation allows fast switching between Chat, Notes,
+Summary, Quiz, Timeline, and Flashcards.</li>
+</ul></li>
+</ul>
+</body>
+</html>
