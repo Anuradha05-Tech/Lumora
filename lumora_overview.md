@@ -17,7 +17,7 @@ Lumora uses a Retrieval-Augmented Generation (RAG) pipeline to analyze video tra
 
 ### Backend (REST API)
 - **Framework:** FastAPI (Python)
-- **Database (Relational):** SQLite (using SQLAlchemy ORM) for storing metadata, caching summaries, generated notes, quizzes, and chat history.
+- **Database (Relational):** PostgreSQL (or SQLite fallback) using SQLAlchemy ORM and Alembic for migrations, storing metadata, caching summaries, generated notes, quizzes, and chat history.
 - **Database (Vector):** ChromaDB for semantic search and Retrieval-Augmented Generation (RAG) capabilities.
 - **LLM Integration:** LangChain (`langchain-huggingface`, `langchain-chroma`, `langchain-google-genai`).
 - **AI Models:**
@@ -54,3 +54,12 @@ Lumora offers a comprehensive set of features separated into individual tabs wit
 - **Responsive & Modern UI:**
   - The extension UI is constructed with a modern, glassmorphic aesthetic using Tailwind CSS. 
   - Dynamic tab navigation allows fast switching between Chat, Notes, Summary, Quiz, Timeline, and Flashcards.
+
+## 5. Production-Readiness Enhancements
+
+Recent updates have transformed Lumora from a prototype to a production-ready system:
+
+- **Asynchronous Processing:** Long-running tasks, particularly downloading missing audio tracks using `yt-dlp` and uploading them to the Gemini API, are now offloaded to FastAPI `BackgroundTasks`. The frontend intelligently polls a new status endpoint, presenting a seamless loading UI.
+- **RAG Evaluation Framework:** A dedicated suite exists to test, score (1-5 scale via LLM-as-a-judge), and evaluate the Retrieval-Augmented Generation responses using mock question/answer pairs.
+- **Robust Rate Limiting:** An in-memory sliding window rate limiter protects resource-intensive API endpoints, limiting requests based on a unique client install ID or IP address to prevent abuse.
+- **Scalable Database:** Transitioned from a simple SQLite configuration to dynamic connection logic supporting PostgreSQL, fully equipped with Alembic for automated schema migrations.

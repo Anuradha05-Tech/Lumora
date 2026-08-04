@@ -1,10 +1,11 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request, BackgroundTasks
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from typing import List, Optional, Dict
 from services.transcript_service import TranscriptService
 from services.rag_service import rag_service
-from database.db import get_db
+from services.rate_limiter import get_rate_limiter
+from database.db import get_db, SessionLocal
 from database.models import Video
 from fastapi.responses import StreamingResponse
 
@@ -23,36 +24,60 @@ class GenerateRequest(BaseModel):
     video_id: str
     subtype: Optional[str] = None
 
-@router.post("/process_video")
-def process_video(request: ProcessVideoRequest, db: Session = Depends(get_db)):
-    video_id = request.video_id
-    
-    # Check if video already exists
-    video = db.query(Video).filter(Video.id == video_id).first()
-    if video:
-        return {"status": "success", "message": "Video already processed."}
-        
+def process_video_task(video_id: str, title: str):
+    db = SessionLocal()
     try:
         audio_uri = None
         try:
-            # Fetch transcript
             transcript = TranscriptService.get_transcript(video_id)
-            # Process and index
             rag_service.process_and_index_transcript(video_id, transcript)
         except Exception as transcript_err:
             print(f"Transcript fetch failed for {video_id}. Falling back to native audio... Error: {transcript_err}")
             from services.audio_service import AudioService
             audio_uri = AudioService.upload_audio(video_id)
             
-        # Save to DB
-        new_video = Video(id=video_id, title=request.title, audio_file_uri=audio_uri)
+        video = db.query(Video).filter(Video.id == video_id).first()
+        if video:
+            video.audio_file_uri = audio_uri
+            video.status = "done"
+            db.commit()
+    except Exception as e:
+        print(f"Error in background task for {video_id}: {e}")
+        video = db.query(Video).filter(Video.id == video_id).first()
+        if video:
+            video.status = "failed"
+            db.commit()
+    finally:
+        db.close()
+
+@router.post("/process_video")
+def process_video(request: ProcessVideoRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    video_id = request.video_id
+    
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if video:
+        if video.status in ["done", "failed"]:
+            return {"status": "success", "message": "Video already processed.", "job_id": video_id}
+        else:
+            return {"status": "success", "message": "Video processing in progress.", "job_id": video_id}
+            
+    try:
+        new_video = Video(id=video_id, title=request.title, status="processing")
         db.add(new_video)
         db.commit()
         
-        msg = "Video processed using native audio fallback." if audio_uri else "Video processed and indexed."
-        return {"status": "success", "message": msg}
+        background_tasks.add_task(process_video_task, video_id, request.title)
+        
+        return {"status": "success", "message": "Video processing started in background.", "job_id": video_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/status/{job_id}")
+def get_status(job_id: str, db: Session = Depends(get_db)):
+    video = db.query(Video).filter(Video.id == job_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return {"status": video.status}
 
 @router.post("/chat")
 def chat_with_video(request: ChatRequest, db: Session = Depends(get_db)):
@@ -66,7 +91,7 @@ def chat_with_video(request: ChatRequest, db: Session = Depends(get_db)):
     return StreamingResponse(iter_response(), media_type="text/event-stream")
 
 @router.post("/generate/{content_type}")
-def generate_content(content_type: str, request: GenerateRequest, db: Session = Depends(get_db)):
+def generate_content(content_type: str, request: GenerateRequest, db: Session = Depends(get_db), _: None = Depends(get_rate_limiter)):
     valid_types = ["summary", "notes", "quiz", "flashcards", "timeline"]
     if content_type not in valid_types:
         raise HTTPException(status_code=400, detail="Invalid content type")

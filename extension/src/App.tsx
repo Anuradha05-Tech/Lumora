@@ -49,6 +49,21 @@ function App() {
           body: JSON.stringify({ video_id: videoId })
         })
         if (!res.ok) throw new Error('Failed to index video')
+        const data = await res.json()
+        const jobId = data.job_id
+        
+        // Poll status
+        if (jobId) {
+          while (true) {
+            const statusRes = await fetch(`http://localhost:8000/api/status/${jobId}`)
+            if (statusRes.ok) {
+              const statusData = await statusRes.json()
+              if (statusData.status === 'done') break
+              if (statusData.status === 'failed') throw new Error('Video processing failed')
+            }
+            await new Promise(resolve => setTimeout(resolve, 2000))
+          }
+        }
       } catch (err: any) {
         setIndexError(err.message)
       } finally {
