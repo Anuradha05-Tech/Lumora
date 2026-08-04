@@ -3,10 +3,11 @@ from typing import List, Dict, Any, Generator
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.runnables import RunnablePassthrough
+from langchain_core.runnables import RunnablePassthrough, RunnableBranch
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_core.messages import HumanMessage, AIMessage
 
 class RAGService:
     def __init__(self):
@@ -47,37 +48,39 @@ class RAGService:
             )
             documents.append(doc)
             
-        # Custom logic to group small transcript lines into larger semantic chunks (~500 chars)
+        # Semantic chunking preserving timestamps with overlap (~1000 chars, ~200 chars overlap)
         docs_to_index = []
-        temp_text = ""
-        temp_start = None
+        current_chunk = ""
+        chunk_start = None
         
-        for doc in documents:
-            if temp_start is None:
-                temp_start = doc.metadata["start"]
+        for i, entry in enumerate(transcript):
+            if chunk_start is None:
+                chunk_start = entry['start']
+                
+            current_chunk += entry['text'] + " "
             
-            temp_text += doc.page_content + " "
-            
-            if len(temp_text) > 500:
+            if len(current_chunk) >= 1000:
                 docs_to_index.append(
                     Document(
-                        page_content=temp_text.strip(),
+                        page_content=current_chunk.strip(),
                         metadata={
                             "video_id": video_id,
-                            "start": temp_start
+                            "start": chunk_start
                         }
                     )
                 )
-                temp_text = ""
-                temp_start = None
+                # Create overlap using the last 2-3 transcript entries
+                overlap_entries = transcript[max(0, i-2):i+1]
+                current_chunk = "".join([e['text'] + " " for e in overlap_entries])
+                chunk_start = overlap_entries[0]['start'] if overlap_entries else entry['start']
                 
-        if temp_text:
+        if current_chunk.strip():
              docs_to_index.append(
                 Document(
-                    page_content=temp_text.strip(),
+                    page_content=current_chunk.strip(),
                     metadata={
                         "video_id": video_id,
-                        "start": temp_start if temp_start is not None else 0
+                        "start": chunk_start if chunk_start is not None else 0
                     }
                 )
             )
@@ -90,32 +93,51 @@ class RAGService:
         Stream an answer based on the video context and conversation history.
         """
         retriever = self.vectorstore.as_retriever(
-            search_kwargs={"filter": {"video_id": video_id}, "k": 8}
+            search_type="mmr",
+            search_kwargs={"filter": {"video_id": video_id}, "k": 5, "fetch_k": 20}
         )
         
-        # Format history string (limit to last 4 messages to save context window)
-        history_str = ""
+        # Convert history to Langchain Messages (limit to last 6 to save context)
+        chat_history = []
         if history:
-            for msg in history[-4:]:
-                role = "User" if msg['role'] == "user" else "Lumora"
-                history_str += f"{role}: {msg['content']}\n\n"
+            for msg in history[-6:]:
+                if msg['role'] == "user":
+                    chat_history.append(HumanMessage(content=msg['content']))
+                else:
+                    chat_history.append(AIMessage(content=msg['content']))
 
-        template = """You are Lumora, an AI learning assistant. Answer the user's question based ONLY on the provided transcript context from a YouTube video and the previous conversation history.
+        # 1. Contextualize Question (History-Aware Retriever)
+        contextualize_q_system_prompt = """Given a chat history and the latest user question \
+which might reference context in the chat history, formulate a standalone question \
+which can be understood without the chat history. Do NOT answer the question, \
+just reformulate it if needed and otherwise return it as is."""
         
-Conversation History:
-{history}
+        contextualize_q_prompt = ChatPromptTemplate.from_messages([
+            ("system", contextualize_q_system_prompt),
+            MessagesPlaceholder("chat_history"),
+            ("human", "{question}"),
+        ])
+        
+        history_aware_retriever = RunnableBranch(
+            (lambda x: not x.get("chat_history", False), RunnablePassthrough() | (lambda x: x["question"]) | retriever),
+            contextualize_q_prompt | self.llm | StrOutputParser() | retriever
+        )
 
+        # 2. Answer Question
+        qa_system_prompt = """You are Lumora, an AI learning assistant. Answer the user's question based ONLY on the provided transcript context from a YouTube video.
+        
 Context:
 {context}
 
 Whenever you use information from the context, you MUST cite the timestamp using the exact start time provided in the metadata.
 Format citations exactly like this: 📍[MM:SS] (calculate MM:SS from the start time in seconds).
 If the context does not contain the answer, say "I don't have enough information from the video to answer that."
-
-Question: {question}
-
-Answer:"""
-        prompt = ChatPromptTemplate.from_template(template)
+"""
+        qa_prompt = ChatPromptTemplate.from_messages([
+            ("system", qa_system_prompt),
+            MessagesPlaceholder("chat_history"),
+            ("human", "{question}"),
+        ])
         
         def format_docs(docs):
             formatted = []
@@ -127,17 +149,15 @@ Answer:"""
             return "\n\n".join(formatted)
             
         chain = (
-            {
-                "context": retriever | format_docs, 
-                "question": RunnablePassthrough(),
-                "history": lambda x: history_str
-            }
-            | prompt
+            RunnablePassthrough.assign(
+                context=history_aware_retriever | format_docs
+            )
+            | qa_prompt
             | self.llm
             | StrOutputParser()
         )
         
-        for chunk in chain.stream(query):
+        for chunk in chain.stream({"question": query, "chat_history": chat_history}):
             yield chunk
 
     def generate_content(self, video_id: str, content_type: str, raw_transcript: List[Dict[str, Any]], subtype: str = None) -> str:
@@ -186,9 +206,9 @@ You MUST output ONLY a valid JSON array of objects. Do not include markdown code
 Include one Multiple Choice (mcq), one True/False (tf), and one Fill-in-the-blank (fill).
 Format exactly like this:
 [
-  {"type": "mcq", "question": "Q1?", "options": ["A", "B", "C", "D"], "answer": "B", "explanation": "Why B is correct"},
-  {"type": "tf", "question": "Statement?", "options": ["True", "False"], "answer": "True", "explanation": "Why True"},
-  {"type": "fill", "question": "The sky is ___", "options": [], "answer": "blue", "explanation": "Fact"}
+  {{"type": "mcq", "question": "Q1?", "options": ["A", "B", "C", "D"], "answer": "B", "explanation": "Why B is correct"}},
+  {{"type": "tf", "question": "Statement?", "options": ["True", "False"], "answer": "True", "explanation": "Why True"}},
+  {{"type": "fill", "question": "The sky is ___", "options": [], "answer": "blue", "explanation": "Fact"}}
 ]
 
 Transcript: {context}
@@ -201,8 +221,8 @@ You MUST output ONLY a valid JSON array of objects. Do not include markdown code
 Extract the timestamp for when each topic begins based on the context (guess the MM:SS if necessary based on flow, but be sequential).
 Format exactly like this:
 [
-  {"time": "00:00", "label": "Introduction"},
-  {"time": "03:15", "label": "First Main Topic"}
+  {{"time": "00:00", "label": "Introduction"}},
+  {{"time": "03:15", "label": "First Main Topic"}}
 ]
 
 Transcript: {context}
@@ -212,7 +232,7 @@ JSON Output:"""
             template = """You are Lumora, a professional AI learning assistant. 
 Create 5 flashcards (Question and Answer pairs) based on the most important concepts in the following transcript.
 You MUST output ONLY a valid JSON array of objects. Do not include markdown code blocks or any other text.
-Format exactly like this: [{"question": "What is X?", "answer": "X is Y."}]
+Format exactly like this: [{{"question": "What is X?", "answer": "X is Y."}}]
 
 Transcript: {context}
 

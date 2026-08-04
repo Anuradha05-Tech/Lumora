@@ -11,6 +11,7 @@ export default function ChatTab({ videoId }: { videoId: string }) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [pendingQuery, setPendingQuery] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
@@ -20,6 +21,23 @@ export default function ChatTab({ videoId }: { videoId: string }) {
   useEffect(() => {
     scrollToBottom()
   }, [messages])
+
+  useEffect(() => {
+    const handleMessage = (msg: any) => {
+      if (msg.action === 'explainSelection' && msg.text) {
+        setPendingQuery(`Please explain this text from the page:\n\n"${msg.text}"`)
+      }
+    }
+    chrome.runtime.onMessage.addListener(handleMessage)
+    return () => chrome.runtime.onMessage.removeListener(handleMessage)
+  }, [])
+
+  useEffect(() => {
+    if (pendingQuery && !isLoading) {
+      handleSend(pendingQuery)
+      setPendingQuery(null)
+    }
+  }, [pendingQuery, isLoading])
 
   const SUGGESTED_PROMPTS = [
     { icon: '✨', text: 'Summarize this video' },
