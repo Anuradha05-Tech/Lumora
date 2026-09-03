@@ -1,12 +1,12 @@
 {
-  "average_score": 0,
+  "average_score": 5.0,
   "results": [
     {
       "video_id": "jNQXAC9IVRw",
       "question": "What is the cool thing about the elephants?",
       "ideal_answer": "The cool thing about these guys is that they have really, really, really long trunks, and that's cool.",
-      "generated_answer": "I don't have enough information from the video to answer that.",
-      "score": 0
+      "generated_answer": "The cool thing about the elephants is that they have really, really, really long trunks \ud83d\udccd[00:01].",
+      "score": 5
     }
   ]
 }
